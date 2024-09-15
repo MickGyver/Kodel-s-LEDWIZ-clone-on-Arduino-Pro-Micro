@@ -45,6 +45,8 @@
 #include <SoftPWM.h>
 #define HAVE_HWSERIAL0 true
 
+#define LEVEL_CHANGE_TIME_CONSTANT 977
+
 SOFTPWM_DEFINE_CHANNEL(0, DDRD, PORTD, PORTD3);  //Arduino pin met usb bovenaan linksboven
 SOFTPWM_DEFINE_CHANNEL(1, DDRD, PORTD, PORTD2);  //Arduino pin 
 SOFTPWM_DEFINE_CHANNEL(2, DDRD, PORTD, PORTD1);  //Arduino pin 
@@ -100,19 +102,19 @@ static const uint8_t map_brightness[] = {
 // it will also respond with an error and the data will be lost.
 uint8_t rawhidData[255];
 // global variables
-static volatile uint8_t counter = 0;
-static volatile long timeToChangeLevels = 0;
-static volatile uint8_t LED_values[32];
-static volatile bool LED_enabled[32]= {false};
-static volatile uint8_t current_bank = 0;
-static volatile uint8_t time_multiplier = 7;
+static uint8_t counter = 0;
+static uint32_t timeLevelChanged = 0; 
+static uint8_t LED_values[32];
+static bool LED_enabled[32]= {false};
+static uint8_t current_bank = 0;
+static uint32_t levelChangeInterval = 7*LEVEL_CHANGE_TIME_CONSTANT;
 
 // initialise the PWM and the HID interface
 void setup() {
   Serial.begin(115200);
- Serial.println("Init program done");
+  Serial.println("Init program done");
   // initialise PWM 
-    Palatis::SoftPWM.begin(60);
+  Palatis::SoftPWM.begin(60);
   // Set the RawHID OUT report array.
   // Feature reports are also (parallel) possible, see the other example for this.
   RawHID.begin(rawhidData, sizeof(rawhidData));
@@ -122,7 +124,7 @@ void setup() {
 
 void loop() {
 
-  if (micros() > timeToChangeLevels) {
+  if ((micros() - timeLevelChanged) > levelChangeInterval) {
     // Pre-calculate the levels for the automated sequences 
     // we directly apply the gamma mapping to avoid having to do this lookup multiple times at runtime
     uint8_t triangle; // bitmode 129
@@ -170,7 +172,7 @@ void loop() {
     // speed 1 is 250ms per full cycle, and speed 7 is 7 times slower.
     // To wrap around in 256 times in 250ms, each round needs to be 977ms on speed 1
     // to move slower, simply wait longer to move to the next level
-    timeToChangeLevels= micros()+(977*time_multiplier);
+    timeLevelChanged = micros();
     counter++;
   }
    
@@ -201,7 +203,7 @@ void loop() {
       // some more reading to do. There are 3 more bytes
       received= RawHID.read();
       // the first byte is a multiplier for the speeds of the automatic patterns, going from 1-7
-      if ((received > 0) && (received < 8)) time_multiplier= received;
+      if ((received > 0) && (received < 8)) levelChangeInterval = received*LEVEL_CHANGE_TIME_CONSTANT;
       // DEBUG
       /*
       Serial.print("Speed: ");
@@ -265,4 +267,3 @@ void loop() {
     }
   }
 }
-
