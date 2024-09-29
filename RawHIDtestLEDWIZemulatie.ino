@@ -20,6 +20,11 @@
   promicro.menu.cpu.16MHzatmega32U4.build.pid=0x00F0
   also add the following line::
   promicro.build.pid=0x00F0
+	
+  If you want to use more then one ledwiz clones, be sure they have different id's!
+  It's the .build.pid = 0x00F0
+  F0 is ID1, for the next ledwiz you need to set it to 0x00F1 so it's ID2.
+  Note: Pinscape is ID8
 
   Modifications for RawHID.h
 
